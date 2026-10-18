@@ -12,24 +12,20 @@ import orderRoutes from "./routes/orderRoutes.js";
 
 const app = express();
 const port = Number(process.env.PORT) || 5000;
-const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5173")
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
 
 if (!process.env.JWT_SECRET) {
   throw new Error("JWT_SECRET is not configured.");
 }
 
+// CORS policy configuration for live deployment & local dev
 app.use(
   cors({
-    origin(origin, callback) {
-      const isDevelopmentLoopback = process.env.NODE_ENV !== "production"
-        && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin || "");
-      callback(null, !origin || allowedOrigins.includes(origin) || isDevelopmentLoopback);
-    },
+    origin: "*", // Live Frontend, Mobile app ra Localhost sabai bata requests allow garchha
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+
 app.use(express.json({ limit: "1mb" }));
 app.use(
   "/uploads",
@@ -40,19 +36,24 @@ app.use(
   })
 );
 
+// Health check endpoint
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", service: "smart-krishi-api" });
 });
+
+// API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/harvests", harvestRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/orders", orderRoutes);
 
+// 404 Route Handler
 app.use((req, res) => {
   res.status(404).json({ message: `Route not found: ${req.method} ${req.originalUrl}` });
 });
 
+// Centralized Error Handler
 app.use((error, _req, res, _next) => {
   console.error("Unhandled API error:", error);
   const status = error.status || 500;
@@ -61,6 +62,7 @@ app.use((error, _req, res, _next) => {
   });
 });
 
+// Start Server & Connect DB
 try {
   await mkdir(uploadsDirectory, { recursive: true });
   await connectDB();
