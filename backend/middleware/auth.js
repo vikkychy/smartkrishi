@@ -13,7 +13,7 @@ export async function protect(req, res, next) {
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(payload.sub).select("_id name email phone role location");
+    const user = await User.findById(payload.id || payload.userId || payload.sub).select("_id name email phone role location");
 
     if (!user) {
       return res.status(401).json({ message: "The account for this token no longer exists." });
