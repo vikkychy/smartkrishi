@@ -74,6 +74,6 @@ Buyer checkout currently runs in demo mode: it creates an order and reserves sto
 ## Deployment
 
 - **Render API:** create a Node web service rooted at `backend`, use `npm install` and `npm start`, and configure `MONGO_URI`, `JWT_SECRET`, `CLIENT_ORIGIN`/`FRONTEND_URL` (your Vercel URL), SMTP settings, Cloudinary credentials for durable image storage, and optionally `JWT_EXPIRES_IN`.
-- **Vercel frontend:** set the project root to `frontend`, use the standard Vite build (`npm run build`, output `dist`), and define `VITE_API_URL` as the deployed API URL plus `/api`.
+- **Vercel frontend:** set the project root to `frontend`, use the standard Vite build (`npm run build`, output `dist`), and define `VITE_API_URL` as the deployed API URL. The frontend appends `/api` if it is missing, so either the API origin or its `/api` URL works.
 - `frontend/vercel.json` includes a rewrite to serve the SPA entry point on client-side routes.
 - Configure MongoDB Atlas network access for the backend deployment and keep credentials only in the hosting provider's environment settings.

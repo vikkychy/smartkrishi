@@ -5,8 +5,13 @@ const defaultBaseUrl =
     ? "http://localhost:5000/api"
     : "/api";
 
+const configuredBaseUrl = import.meta.env.VITE_API_URL?.trim();
+const baseUrl = configuredBaseUrl
+  ? `${configuredBaseUrl.replace(/\/+$/, "").replace(/\/api$/i, "")}/api`
+  : defaultBaseUrl;
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || defaultBaseUrl,
+  baseURL: baseUrl,
   headers: { "Content-Type": "application/json" },
 });
 
