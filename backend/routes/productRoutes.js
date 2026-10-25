@@ -49,21 +49,25 @@ router.get("/mine", protect, authorize("farmer"), async (req, res, next) => {
 
 router.post("/", protect, authorize("farmer"), receiveImage, async (req, res, next) => {
   let uploadedImage = "";
+  let uploadedPublicId = "";
   try {
-    uploadedImage = await saveUploadedImage(req.file);
+    const uploaded = await saveUploadedImage(req.file);
+    uploadedImage = uploaded.url;
+    uploadedPublicId = uploaded.publicId;
     const product = await Product.create({
       ...Object.fromEntries(
         Object.entries(req.body).filter(([key]) => editableFields.includes(key))
       ),
-      ...(uploadedImage ? { image: uploadedImage } : {}),
+      ...(uploadedImage ? { image: uploadedImage, imagePublicId: uploadedPublicId } : {}),
       farmer: req.user._id,
     });
     uploadedImage = "";
+    uploadedPublicId = "";
     res.status(201).json({ product });
   } catch (error) {
     if (uploadedImage) {
       try {
-        await deleteUploadedImage(uploadedImage);
+        await deleteUploadedImage(uploadedImage, uploadedPublicId);
       } catch (cleanupError) {
         console.error("Unable to clean up rejected product image:", cleanupError);
       }
@@ -80,7 +84,9 @@ router.post("/", protect, authorize("farmer"), receiveImage, async (req, res, ne
 
 router.put("/:id", protect, authorize("farmer"), receiveImage, async (req, res, next) => {
   let uploadedImage = "";
+  let uploadedPublicId = "";
   let previousImage = "";
+  let previousPublicId = "";
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(400).json({ message: "Invalid product ID." });
@@ -90,11 +96,14 @@ router.put("/:id", protect, authorize("farmer"), receiveImage, async (req, res, 
       Object.entries(req.body).filter(([key]) => editableFields.includes(key))
     );
     if (req.file) {
-      uploadedImage = await saveUploadedImage(req.file);
+      const uploaded = await saveUploadedImage(req.file);
+      uploadedImage = uploaded.url;
+      uploadedPublicId = uploaded.publicId;
       updates.image = uploadedImage;
+      updates.imagePublicId = uploadedPublicId;
     }
     const existingProduct = req.file
-      ? await Product.findOne({ _id: req.params.id, farmer: req.user._id }).select("image")
+      ? await Product.findOne({ _id: req.params.id, farmer: req.user._id }).select("image +imagePublicId")
       : null;
     const product = await Product.findOneAndUpdate(
       { _id: req.params.id, farmer: req.user._id },
@@ -105,27 +114,31 @@ router.put("/:id", protect, authorize("farmer"), receiveImage, async (req, res, 
     if (!product) {
       if (uploadedImage) {
         try {
-          await deleteUploadedImage(uploadedImage);
+          await deleteUploadedImage(uploadedImage, uploadedPublicId);
         } catch (cleanupError) {
           console.error("Unable to clean up rejected product image:", cleanupError);
         }
       }
       return res.status(404).json({ message: "Product not found or not owned by this farmer." });
     }
-    if (existingProduct) previousImage = existingProduct.image;
+    if (existingProduct) {
+      previousImage = existingProduct.image;
+      previousPublicId = existingProduct.imagePublicId;
+    }
     if (previousImage && uploadedImage) {
       try {
-        await deleteUploadedImage(previousImage);
+        await deleteUploadedImage(previousImage, previousPublicId);
       } catch (error) {
         console.error("Unable to remove replaced product image:", error);
       }
     }
     uploadedImage = "";
+    uploadedPublicId = "";
     res.json({ product });
   } catch (error) {
     if (uploadedImage) {
       try {
-        await deleteUploadedImage(uploadedImage);
+        await deleteUploadedImage(uploadedImage, uploadedPublicId);
       } catch (cleanupError) {
         console.error("Unable to clean up rejected product image:", cleanupError);
       }
@@ -149,12 +162,12 @@ router.delete("/:id", protect, authorize("farmer"), async (req, res, next) => {
     const product = await Product.findOneAndDelete({
       _id: req.params.id,
       farmer: req.user._id,
-    });
+    }).select("+imagePublicId");
     if (!product) {
       return res.status(404).json({ message: "Product not found or not owned by this farmer." });
     }
     try {
-      await deleteUploadedImage(product.image);
+      await deleteUploadedImage(product.image, product.imagePublicId);
     } catch (error) {
       console.error("Unable to remove deleted product image:", error);
     }
