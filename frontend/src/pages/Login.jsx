@@ -1,4 +1,4 @@
-import { ArrowRight, Leaf, LockKeyhole, Mail, MapPin, Phone, UserRound } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Leaf, LockKeyhole, Mail, MapPin, Phone, UserRound } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 export default function Login() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [form, setForm] = useState({ name: "", identifier: "", password: "", role: "buyer", location: "" });
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const { login, register } = useAuth();
@@ -84,7 +85,7 @@ export default function Login() {
           )}
 
           <label className="field-label" htmlFor="password">Password</label>
-          <div className="input-wrap"><LockKeyhole size={17} /><input id="password" name="password" type="password" value={form.password} onChange={updateField} autoComplete={isRegistering ? "new-password" : "current-password"} minLength={isRegistering ? 8 : undefined} placeholder={isRegistering ? "At least 8 characters" : "Enter your password"} required /></div>
+          <div className="input-wrap"><LockKeyhole size={17} /><input id="password" name="password" type={isPasswordVisible ? "text" : "password"} value={form.password} onChange={updateField} autoComplete={isRegistering ? "new-password" : "current-password"} minLength={isRegistering ? 8 : undefined} placeholder={isRegistering ? "At least 8 characters" : "Enter your password"} required /><button className="password-toggle" type="button" aria-label={isPasswordVisible ? "Hide password" : "Show password"} aria-pressed={isPasswordVisible} aria-controls="password" onClick={() => setIsPasswordVisible((visible) => !visible)}>{isPasswordVisible ? <EyeOff size={17} /> : <Eye size={17} />}</button></div>
 
           <button className="button button-dark auth-submit" type="submit" disabled={submitting}>
             {submitting ? "Please wait..." : isRegistering ? "Create account" : "Sign in"} <ArrowRight size={17} />

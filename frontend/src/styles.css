@@ -169,6 +169,8 @@ button { color: inherit; }
 .input-wrap:focus-within { border-color: #89a17d; box-shadow: 0 0 0 3px #78946d18; }
 .input-wrap input { width: 100%; min-width: 0; color: #293629; background: transparent; border: 0; outline: 0; font-size: 12px; }
 .input-wrap input::placeholder { color: #a2a89d; }
+.password-toggle { display: grid; flex: 0 0 auto; place-items: center; padding: 4px; color: inherit; background: transparent; border: 0; border-radius: 4px; cursor: pointer; }
+.password-toggle:focus-visible { outline: 2px solid #89a17d; outline-offset: 2px; }
 .select-input { width: 100%; height: 45px; padding: 0 12px; color: #485447; background: #fbfcf8; border: 1px solid #e1e5d9; border-radius: 5px; outline: 0; font-size: 12px; }
 .auth-submit { width: 100%; margin-top: 24px; }
 .auth-submit:disabled { opacity: .65; cursor: wait; }
