@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^node --check backend/routes/authRoutes\\.js; node --check backend/server\\.js; npm --prefix frontend run build$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
