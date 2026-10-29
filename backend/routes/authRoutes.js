@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomInt } from "node:crypto";
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
 import User from "../models/User.js";
@@ -8,7 +8,7 @@ import { protect } from "../middleware/auth.js";
 const router = Router();
 const RESET_TOKEN_TTL_MS = 15 * 60 * 1000;
 const RESET_REQUEST_COOLDOWN_MS = 60 * 1000;
-const RESET_REQUEST_MESSAGE = "If an account with that email exists, a password reset link will be sent.";
+const RESET_REQUEST_MESSAGE = "If an account with that email exists, a password reset code will be sent.";
 
 function createToken(userId) {
   return jwt.sign({ sub: userId }, process.env.JWT_SECRET, {
@@ -156,23 +156,19 @@ router.post("/forgot-password", async (req, res, next) => {
       return res.json({ message: RESET_REQUEST_MESSAGE });
     }
 
-    const token = randomBytes(32).toString("hex");
-    user.passwordResetTokenHash = hashResetToken(token);
+    const otp = String(randomInt(100000, 1000000));
+    user.passwordResetTokenHash = hashResetToken(otp);
     user.passwordResetExpiresAt = new Date(now + RESET_TOKEN_TTL_MS);
     user.passwordResetRequestedAt = new Date(now);
     await user.save();
-
-    const frontendUrl = process.env.FRONTEND_URL || process.env.CLIENT_ORIGIN?.split(",")[0].trim() || "http://localhost:5173";
-    const resetUrl = new URL("/reset-password", frontendUrl);
-    resetUrl.searchParams.set("token", token);
 
     try {
       await transport.sendMail({
         from: process.env.SMTP_FROM,
         to: user.email,
-        subject: "Reset your Smart Krishi password",
-        text: `Use this link within 15 minutes to reset your password: ${resetUrl.toString()}\n\nIf you did not request this, you can ignore this email.`,
-        html: `<p>Use the link below within 15 minutes to reset your Smart Krishi password.</p><p><a href="${resetUrl.toString()}">Reset password</a></p><p>If you did not request this, you can ignore this email.</p>`,
+        subject: "Your Smart Krishi password reset code",
+        text: `Your password reset code is ${otp}. It expires in 15 minutes.\n\nIf you did not request this, you can ignore this email.`,
+        html: `<p>Your Smart Krishi password reset code is:</p><p style="font-size:24px;font-weight:bold;letter-spacing:4px">${otp}</p><p>This code expires in 15 minutes.</p><p>If you did not request this, you can ignore this email.</p>`,
       });
     } catch (error) {
       user.passwordResetTokenHash = undefined;
@@ -191,21 +187,32 @@ router.post("/forgot-password", async (req, res, next) => {
 
 router.post("/reset-password", async (req, res, next) => {
   try {
-    const { token, password } = req.body;
-    if (typeof token !== "string" || !/^[a-f0-9]{64}$/i.test(token)) {
-      return res.status(400).json({ message: "This reset link is invalid or has expired." });
-    }
+    const { token, email, otp, password } = req.body;
     if (typeof password !== "string" || password.length < 8) {
       return res.status(400).json({ message: "Password must be at least 8 characters." });
     }
 
+    let resetFilter;
+    if (typeof token === "string") {
+      if (!/^[a-f0-9]{64}$/i.test(token)) {
+        return res.status(400).json({ message: "This reset link is invalid or has expired." });
+      }
+      resetFilter = { passwordResetTokenHash: hashResetToken(token) };
+    } else {
+      const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+      if (!normalizedEmail || typeof otp !== "string" || !/^\d{6}$/.test(otp)) {
+        return res.status(400).json({ message: "Enter a valid email address and 6-digit reset code." });
+      }
+      resetFilter = { email: normalizedEmail, passwordResetTokenHash: hashResetToken(otp) };
+    }
+
     const user = await User.findOne({
-      passwordResetTokenHash: hashResetToken(token),
+      ...resetFilter,
       passwordResetExpiresAt: { $gt: new Date() },
     }).select("+passwordResetTokenHash +passwordResetExpiresAt +passwordResetRequestedAt");
 
     if (!user) {
-      return res.status(400).json({ message: "This reset link is invalid or has expired." });
+      return res.status(400).json({ message: "This reset code or link is invalid or has expired." });
     }
 
     user.password = password;
